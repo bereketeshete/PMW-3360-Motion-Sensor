@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <avr/pgmspace.h>
 
+
 // Registers
 #define Product_ID  0x00
 #define Revision_ID 0x01
@@ -80,12 +81,9 @@ void setup() {
   SPI.setBitOrder(MSBFIRST);
   SPI.setClockDivider(SPI_CLOCK_DIV128);
   //SPI.setClockDivider(4);
-
   
   performStartup();  
-  
-  delay(5000);
-  
+  delay(100);
   dispRegisters();
   initComplete=9;
 
@@ -188,6 +186,19 @@ void performStartup(void){
   Serial.println("Optical Chip Initialized");
   }
 
+
+
+float direction(int8_t dx, int8_t dy){
+  // RAD2DEG = angle * 180 / PI;
+  float angle = atan2(dy, dx) * 180 / PI;
+  return angle;
+}
+
+int8_t mag(int8_t dx, int8_t dy){
+  int8_t d_avg = sqrt (pow (dx, 2) + pow (dy, 2));
+  return d_avg;
+}
+
 void UpdatePointer(void){
   if(initComplete==9){
 
@@ -252,11 +263,25 @@ void loop() {
   //   movementflag=0;
   //   }
 
-  Serial.print("x = ");
-  Serial.print( convTwosComp(xydat[0]) );
-  Serial.print(" | ");
-  Serial.print("y = ");
-  Serial.println( convTwosComp(xydat[1]) );
+  // char display_type[] = "serial_digital_output";
+
+  // Serial.print("x = ");
+  // Serial.print( convTwosComp(xydat[0]) );
+  // Serial.print(" | ");
+  // Serial.print("y = ");
+  // Serial.println( convTwosComp(xydat[1]) );
+
+
+  float dx = convTwosComp(xydat[0]);
+  float dy = convTwosComp(xydat[1]);
+
+  float average = mag(dx,dy);
+  float my_angle = direction(dx,dy);
+  
+  Serial.print("Average:");
+  Serial.println(average);
+  Serial.print("angle:");
+  Serial.println(my_angle);
     
   }
 

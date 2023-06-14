@@ -1,6 +1,11 @@
+/*
+ * Main Driver Code
+ */
+
+// Normal ATP 328 Bootloader
+
 #include <SPI.h>
 #include <avr/pgmspace.h>
-
 
 // Registers
 #define Product_ID  0x00
@@ -54,14 +59,24 @@
 #define LiftCutoff_Tune2  0x65
 
 //Set this to what pin your "INT0" hardware interrupt feature is on
-#define Motion_Interrupt_Pin 3
+#define Motion_Interrupt_Pin 9
 
 const int ncs = 10;  //This is the SPI "slave select" pin that the sensor is hooked up to
+
+///////////////////////////////////////
+// Define variables
 
 byte initComplete=0;
 volatile int xydat[2];
 volatile byte movementflag=0;
-
+byte testctr=0;
+unsigned long currTime;
+unsigned long timer;
+unsigned long pollTimer;
+unsigned long StartTime;
+unsigned long CurrentTime;
+unsigned long ElapsedTime;
+int count_freq;
 
 //Be sure to add the SROM file into this sketch via "Sketch->Add File"
 extern const unsigned short firmware_length;
@@ -74,18 +89,23 @@ void setup() {
   
   pinMode(Motion_Interrupt_Pin, INPUT);
   digitalWrite(Motion_Interrupt_Pin, HIGH);
-  attachInterrupt(0, UpdatePointer, FALLING);
+  attachInterrupt(9, UpdatePointer, FALLING);
 
   SPI.begin();
   SPI.setDataMode(SPI_MODE3);
   SPI.setBitOrder(MSBFIRST);
   SPI.setClockDivider(SPI_CLOCK_DIV128);
   //SPI.setClockDivider(4);
+
   
   performStartup();  
-  delay(100);
+  
+  delay(5000);
+  
   dispRegisters();
   initComplete=9;
+
+  StartTime = millis();
 
 }
 
@@ -186,19 +206,6 @@ void performStartup(void){
   Serial.println("Optical Chip Initialized");
   }
 
-
-
-float direction(int8_t dx, int8_t dy){
-  // RAD2DEG = angle * 180 / PI;
-  float angle = atan2(dy, dx) * 180 / PI;
-  return angle;
-}
-
-int8_t mag(int8_t dx, int8_t dy){
-  int8_t d_avg = sqrt (pow (dx, 2) + pow (dy, 2));
-  return d_avg;
-}
-
 void UpdatePointer(void){
   if(initComplete==9){
 
@@ -245,43 +252,130 @@ int convTwosComp(int b){
     }
   return b;
   }
-  
+
+
+float direction(int8_t dx, int8_t dy){
+ // RAD2DEG = angle * 180 / PI;
+ float angle = atan2(dy, dx) * 180 / PI;
+ return angle;
+}
+
+
+int8_t mag(int8_t dx, int8_t dy){
+ int8_t d_avg = sqrt (pow (dx, 2) + pow (dy, 2));
+ return d_avg;
+}
+
+//unsigned long clocktime;
 
 void loop() {
 
-  // if(movementflag){
-    
-  //   //uncomment below if using Teensy from PJRC to move mouse on screen
-  //   //Mouse.move(convTwosComp(xydat[0]),convTwosComp(xydat[1]));
-    
-  //   Serial.print("x = ");
-  //   Serial.print( convTwosComp(xydat[0]) );
-  //   Serial.print(" | ");
-  //   Serial.print("y = ");
-  //   Serial.println( convTwosComp(xydat[1]) );
-    
-  //   movementflag=0;
+  //////////////////////////////////////////
+  // option 1
+  currTime = millis();
+  
+  // if(currTime > timer){    
+  //   Serial.println(testctr++);
+  //   timer = currTime + 2000;
   //   }
-
-  // char display_type[] = "serial_digital_output";
-
+  // UpdatePointer();
+  // xydat[0] = convTwosComp(xydat[0]);
+  // xydat[1] = convTwosComp(xydat[1]);
   // Serial.print("x = ");
-  // Serial.print( convTwosComp(xydat[0]) );
+  // Serial.print(xydat[0]);
+  // Serial.print(" mm ");
   // Serial.print(" | ");
   // Serial.print("y = ");
-  // Serial.println( convTwosComp(xydat[1]) );
+  // Serial.print(xydat[1]);
+  // Serial.println(" mm ");
+  // delay(100);
 
-
-  float dx = convTwosComp(xydat[0]);
-  float dy = convTwosComp(xydat[1]);
-
-  float average = mag(dx,dy);
-  float my_angle = direction(dx,dy);
+   //////////////////////////////////////////
+  // option 2, velocity
+  // dv_x = dx*df
+  currTime = millis();
   
-  Serial.print("Average:");
-  Serial.println(average);
-  Serial.print("angle:");
-  Serial.println(my_angle);
+  // if(currTime > timer){    
+  //   Serial.println(testctr++);
+  //   timer = currTime + 2000;
+  //   }
+
+  UpdatePointer();
+  xydat[0] = convTwosComp(xydat[0]);
+  xydat[1] = convTwosComp(xydat[1]);
+  Serial.print("vx = ");
+  Serial.print(xydat[0]*0.2);
+  Serial.print(" mmps ");
+  Serial.print(" | ");
+  Serial.print("vy = ");
+  Serial.print(xydat[1]*0.2);
+  Serial.println(" mmps ");
+  //delay(100);
+
+
+  /////////////////////////////////////////
+  // options 2
+
+  // UpdatePointer();
+  // float dx = convTwosComp(xydat[0]);
+  // float dy = convTwosComp(xydat[1]);
+
+  // // xydat[0] = convTwosComp(xydat[0]);
+  // // xydat[1] = convTwosComp(xydat[1]);
+
+
+  // int average = mag(dx,dy);
+  // float my_angle = direction(dx,dy);
+  
+  // Serial.print("average:");
+  // Serial.println(average);
+  // Serial.print("|");
+  // Serial.print("angle:");
+  // Serial.println(my_angle);
+  // delay(50);
+
+
+
+  //////////////////////////
+  //option 3
+
+  //clocktime = micros();
+  //Serial.println(clocktime);
+
+
+  // original 
+  // if(currTime > pollTimer){
+  //   UpdatePointer();
+  //   xydat[0] = convTwosComp(xydat[0]);
+  //   xydat[1] = convTwosComp(xydat[1]);
+  //     if(xydat[0] != 0 || xydat[1] != 0){
+  //       Serial.print("x = ");
+  //       Serial.print(xydat[0]);
+  //       Serial.print(" | ");
+  //       Serial.print("y = ");
+  //       Serial.println(xydat[1]);
+  //       }
+  //   pollTimer = currTime + 20;
+  //   }
+
+  ////////////////////////////////////////
+  // option 4, measure frequency
+  // CurrentTime = millis();
+  // ElapsedTime = CurrentTime - StartTime;
+
+  // if (ElapsedTime < 1000){
+  //   count_freq++;
+  //   Serial.println(ElapsedTime);
+  // }
+  // else {
+  //   // quit
+  //   Serial.print("frequency is: ");
+  //   Serial.print(count_freq);
+  //   Serial.println(" Hz");
+    
+  // }
+
+  // delay(100);
     
   }
 

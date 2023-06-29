@@ -6,6 +6,9 @@
 
 #include <SPI.h>
 #include <avr/pgmspace.h>
+#include <LiquidCrystal_I2C.h>
+
+
 
 // Registers
 #define Product_ID  0x00
@@ -62,11 +65,14 @@
 #define Motion_Interrupt_Pin 9
 
 const int ncs = 10;  //This is the SPI "slave select" pin that the sensor is hooked up to
+int x = 0; // for sensor.motion burst
+int y = 0;
 
 ///////////////////////////////////////
 // Define variables
 
 byte initComplete=0;
+volatile float total =0;
 volatile int xydat[2];
 volatile byte movementflag=0;
 byte testctr=0;
@@ -82,6 +88,13 @@ int count_freq;
 extern const unsigned short firmware_length;
 extern const unsigned char firmware_data[];
 
+// Define SDA and SCL pin for LCD:
+#define SDAPin A4 // Data pin
+#define SCLPin A5 // Clock pin
+// Connect to LCD via I2C, default address 0x27 (A0-A2 not jumpered):
+LiquidCrystal_I2C lcd = LiquidCrystal_I2C(0x27,20,4); //Change to (0x27,16,2) for 1602 LCD
+
+
 void setup() {
   Serial.begin(9600);
   
@@ -96,16 +109,13 @@ void setup() {
   SPI.setBitOrder(MSBFIRST);
   SPI.setClockDivider(SPI_CLOCK_DIV128);
   //SPI.setClockDivider(4);
-
-  
   performStartup();  
-  
-  delay(5000);
-  
+  //delay(5000);
   dispRegisters();
   initComplete=9;
-
   StartTime = millis();
+  lcd.init();
+  lcd.backlight();
 
 }
 
@@ -268,11 +278,20 @@ int8_t mag(int8_t dx, int8_t dy){
 
 //unsigned long clocktime;
 
+//measure total length
+// float integrate_mag(float length){
+//   float total += length
+//   return total;
+// }
+
+
+
+
 void loop() {
 
   //////////////////////////////////////////
   // option 1
-  currTime = millis();
+  // currTime = millis();
   
   // if(currTime > timer){    
   //   Serial.println(testctr++);
@@ -293,24 +312,24 @@ void loop() {
    //////////////////////////////////////////
   // option 2, velocity
   // dv_x = dx*df
-  currTime = millis();
+  // currTime = millis();
   
-  // if(currTime > timer){    
-  //   Serial.println(testctr++);
-  //   timer = currTime + 2000;
-  //   }
+  // // if(currTime > timer){    
+  // //   Serial.println(testctr++);
+  // //   timer = currTime + 2000;
+  // //   }
 
-  UpdatePointer();
-  xydat[0] = convTwosComp(xydat[0]);
-  xydat[1] = convTwosComp(xydat[1]);
-  Serial.print("vx = ");
-  Serial.print(xydat[0]*0.2);
-  Serial.print(" mmps ");
-  Serial.print(" | ");
-  Serial.print("vy = ");
-  Serial.print(xydat[1]*0.2);
-  Serial.println(" mmps ");
-  //delay(100);
+  // UpdatePointer();
+  // xydat[0] = convTwosComp(xydat[0]);
+  // xydat[1] = convTwosComp(xydat[1]);
+  // Serial.print("vx = ");
+  // Serial.print(xydat[0]*0.2);
+  // Serial.print(" mmps ");
+  // Serial.print(" | ");
+  // Serial.print("vy = ");
+  // Serial.print(xydat[1]*0.2);
+  // Serial.println(" mmps ");
+  // //delay(100);
 
 
   /////////////////////////////////////////
@@ -376,6 +395,56 @@ void loop() {
   // }
 
   // delay(100);
+
+  //////////////////////////////////////////
+  // option 5, measure total distance
+
+  // UpdatePointer();
+  // float dx = convTwosComp(xydat[0]);
+  // float dy = convTwosComp(xydat[1]);
+
+  // // xydat[0] = convTwosComp(xydat[0]);
+  // // xydat[1] = convTwosComp(xydat[1]);
+
+
+  // int average = mag(dx,dy);
+  // float my_angle = direction(dx,dy);
+  // float total = total + average;
+  
+  // Serial.print("total:");
+  // Serial.print(total);
+  // Serial.print("|");
+  // Serial.print("angle:");
+  // Serial.println(my_angle);
+  // delay(50);
+
+  ///////////////////////////////////////
+  // option 6
+
+   UpdatePointer();
+  float dx = convTwosComp(xydat[0]);
+  float dy = convTwosComp(xydat[1]);
+  int average = mag(dx,dy);
+  float my_angle = direction(dx,dy);
+  float total = total + average;
+  
+  x += dx;
+  y += dy;  
+
+  Serial.print("total_x: ");
+  Serial.print(x);
+  Serial.print("|");
+  Serial.print(" total_y: ");
+  Serial.println(y);
+
+  lcd.setCursor(0,0); // Set the cursor to column 1, line 1 (counting starts at zero)
+  lcd.print("x:"); // Prints string "Display = " on the LCD
+  lcd.print(x); // Prints the measured distance
+  lcd.print(" | y:"); // Prints string "Display = " on the LCD
+  lcd.print(y); // Prints the measured distance
+
+  //delay(100);
+
     
   }
 

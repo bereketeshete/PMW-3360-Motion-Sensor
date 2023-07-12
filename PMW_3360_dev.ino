@@ -1,4 +1,7 @@
+
+
 // Modified by Bereket Kebede
+// Dextrous Robotics
 // Normal ATP 328 Bootloader
 
 #include <SPI.h>
@@ -61,15 +64,15 @@
 #define Motion_Interrupt_Pin 9
 
 const int ncs = 10;  //This is the SPI "slave select" pin that the sensor is hooked up to
-int x = 0; // for sensor.motion burst
-int y = 0;
+int16_t x = 0; // for sensor.motion burst
+int16_t y = 0;
 
 ///////////////////////////////////////
 // Define variables
 
 byte initComplete=0;
 volatile float total =0;
-volatile int xydat[4];
+volatile int16_t xydat[4];
 
 
 
@@ -115,6 +118,7 @@ void setup() {
   StartTime = millis();
   lcd.init();
   lcd.backlight();
+  // Keyboard.begin();
 
 }
 
@@ -128,13 +132,11 @@ void pmw_com_end(){
 
 byte pmw_read_reg(byte reg_addr){
   pmw_com_begin();
-  
   // send adress of the register, with MSBit = 0 to indicate it's a read
   SPI.transfer(reg_addr & 0x7f );
   delayMicroseconds(100); // tSRAD
   // read data
   byte data = SPI.transfer(0);
-  
   delayMicroseconds(1); // tSCLK-NCS for read operation is 120ns
   pmw_com_end();
   delayMicroseconds(19); //  tSRW/tSRR (=20us) minus tSCLK-NCS
@@ -224,8 +226,8 @@ void UpdatePointer(void){
     pmw_read_reg(Motion);
     // xydat[0] = (int)pmw_read_reg(Delta_X_L);
     // xydat[1] = (int)pmw_read_reg(Delta_X_H);
-    int DELTA_X = pmw_read_reg(Delta_X_L) + (int)(pmw_read_reg(Delta_X_H) << 8);
-    int DELTA_Y = pmw_read_reg(Delta_Y_L) + (int)(pmw_read_reg(Delta_Y_H) << 8); 
+    int16_t DELTA_X = pmw_read_reg(Delta_X_L) + (int16_t)(pmw_read_reg(Delta_X_H) << 8);
+    int16_t DELTA_Y = pmw_read_reg(Delta_Y_L) + (int16_t)(pmw_read_reg(Delta_Y_H) << 8); 
     xydat[0] = DELTA_X;
     xydat[1] = DELTA_Y;
     
@@ -428,9 +430,14 @@ void loop() {
   int average = mag(dx,dy);
   float my_angle = direction(dx,dy);
   float total = total + average;
-  
+
+  // if (Keyboard.press == 'n')
+  // else{
   x += dx;
   y += dy;  
+  
+  
+  
 
   Serial.print("total_x: ");
   Serial.print(x);
@@ -440,9 +447,14 @@ void loop() {
 
   lcd.setCursor(0,0); // Set the cursor to column 1, line 1 (counting starts at zero)
   lcd.print("x:"); // Prints string "Display = " on the LCD
-  lcd.print(x); // Prints the measured distance
+  lcd.print(dx); // Prints the measured distance
   lcd.print(" | y:"); // Prints string "Display = " on the LCD
-  lcd.print(y); // Prints the measured distance
+  lcd.print(dy); // Prints the measured distance
+
+  lcd.setCursor(0,1); // Set the cursor to column 1, line 1 (counting starts at zero)
+  lcd.print("speed: ");
+  lcd.print(dx*0.0059); // Prints string "Display = " on the LCD
+
 
   //delay(100);
 
